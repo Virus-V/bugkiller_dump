@@ -258,7 +258,7 @@ int main(int argc, char *argv[]) {
         while (1) {
           ret = regexec(regex_sec_hdr, p, 2, m, 0);
           if (ret == REG_NOMATCH) {
-            if (no_match_cnt++ > 50) {
+            if (no_match_cnt++ > 5) {
               parser_state = PARSER_TO_INIT;
             }
             break;
