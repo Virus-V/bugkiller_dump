@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
     PARSER_DUMP,
   } parser_state = 0;
 
-  int no_match_cnt = 0;
+  int redo = 0; // indicates that the current line will be reprocessed
   uint32_t sec_addr, sec_len; // section addr and len
   char splitter = -1;
   int dump_line_cnt = 0;
@@ -237,7 +237,6 @@ int main(int argc, char *argv[]) {
       break;
 
     case PARSER_TO_SECTION:
-      no_match_cnt = 0;
       parser_state = PARSER_SECTION;
       if (base64_content != NULL) {
         free(base64_content);
@@ -258,8 +257,16 @@ int main(int argc, char *argv[]) {
         while (1) {
           ret = regexec(regex_sec_hdr, p, 2, m, 0);
           if (ret == REG_NOMATCH) {
-            if (no_match_cnt++ > 5) {
+            ret = regexec(regex_dump_hdr, p, 2, m, 0);
+            if (ret == REG_NOMATCH) {
+                break;
+            } else if (ret == 0) {
               parser_state = PARSER_TO_INIT;
+              redo = 1;
+            } else {
+              fprintf(stderr, "%s:%d: regexec error %d on section header\n",
+                      __func__, __LINE__, ret);
+              break;
             }
             break;
           } else if (ret == 0) {
@@ -297,8 +304,8 @@ int main(int argc, char *argv[]) {
             }
 
 #if 1
-            printf("addr: %x ", sec_addr);
-            printf("length: %x line:%d ", sec_len, dump_line_cnt);
+            printf("addr: %X ", sec_addr);
+            printf("length: %X line:%d ", sec_len, dump_line_cnt);
 
             attr = strtok_r(NULL, "@", &next_attr);
             printf("name: %s\n", attr);
@@ -437,6 +444,10 @@ int main(int argc, char *argv[]) {
     }
 
   _cont:
+    if (redo) {
+      redo = 0;
+      continue;
+    }
     i += strlen(line);
     line = strtok_r(NULL, "\r\n", &next_line);
   }
